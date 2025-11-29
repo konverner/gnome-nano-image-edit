@@ -1,0 +1,20 @@
+pycairo
+# PyGObject cannot be reliably built from source in many environments because
+# it requires native Cairo and GObject-Introspection development headers.
+# Do NOT install PyGObject via pip unless you have the native deps installed.
+#
+# Ubuntu / Debian (recommended):
+# 1) Install native dependencies:
+#    sudo apt update
+#    sudo apt install -y pkg-config python3-dev libcairo2-dev libgirepository1.0-dev gir1.2-gtk-3.0 python3-gi python3-gi-cairo
+# 2) Then install python deps in your venv:
+#    pip install -r requirements.txt
+#
+# Fedora:
+#    sudo dnf install -y cairo-devel gobject-introspection-devel libX11-devel python3-gobject
+#
+# If you really need PyGObject via pip, ensure native deps above are present and then:
+#    pip install pycairo     # may be required first
+#    pip install PyGObject==3.54.5
+#
+# (Keeping PyGObject commented out of requirements.txt avoids the pip build failure.)
