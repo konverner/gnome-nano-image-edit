@@ -1,3 +1,46 @@
+# Development
+
+## Installation
+
+### 1. Prerequisites (Ubuntu/Debian)
+
+Ensure you have the Python GTK bindings and associated development packages installed:
+
+```
+sudo apt update
+sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0
+```
+
+### 2. Set-up source code
+
+Clone this repository:
+
+```
+git clone https://github.com/konverner/gnome-nano-image-edit
+cd gnome-nano-image-edit
+```
+
+Create and activate virtual environment for Python:
+
+```
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Install Python dependencies:
+
+```
+pip install -e .
+```
+
+### 3. Running the Application
+
+Run the main application file:
+
+```
+python - src.main
+```
+
 ## Test checklist
 
 This checklist covers core features, stability, and user experience to ensure a smooth release.
