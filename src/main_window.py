@@ -247,6 +247,10 @@ class MainWindow(Gtk.ApplicationWindow):
             image = self.processor.copy_selection(selection)
             if image:
                 self._copy_image_to_clipboard(image)
+        else:
+            # If no selection, copy the entire canvas
+            if self.processor.current_image:
+                self._copy_image_to_clipboard(self.processor.current_image)
 
     def cut_to_clipboard(self):
         """Cut current selection to clipboard."""
