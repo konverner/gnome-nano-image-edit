@@ -408,7 +408,7 @@ class CanvasWidget(Gtk.DrawingArea):
 
         if self._drag_mode == 'select' and self.selection_box:
             scaled_selection = self.get_scaled_selection()
-            if scaled_selection and (scaled_selection[2] > scaled_selection[0]) and (scaled_selection[3] > scaled_selection[1]):
+            if scaled_selection and scaled_selection[2] > 0 and scaled_selection[3] > 0:
                 if self.manager.current_tool == 'select':
                     self.processor.cut_selection(scaled_selection)
                 elif self.manager.current_tool == 'crop':
@@ -451,7 +451,7 @@ class CanvasWidget(Gtk.DrawingArea):
         img_x2 = max(0, min(img_x2, img_w))
         img_y2 = max(0, min(img_y2, img_h))
 
-        return (int(img_x1), int(img_y1), int(img_x2), int(img_y2))
+        return (int(img_x1), int(img_y1), int(img_x2 - img_x1), int(img_y2 - img_y1))
         
     def _apply_canvas_resize(self, offset_x, offset_y):
         if not self._resize_start_size or not self._image_display_rect:
