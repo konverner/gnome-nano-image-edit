@@ -4,6 +4,7 @@ This module defines the main application window with all UI components,
 toolbar, canvas, and event handlers.
 """
 
+import datetime
 import io
 import os
 
@@ -330,56 +331,93 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def on_open_clicked(self, widget):
         """Handle the Open button click."""
-        dialog = Gtk.FileChooserDialog(
-            title="Please choose a file",
-            transient_for=self,
-            action=Gtk.FileChooserAction.OPEN,
-        )
-        dialog.add_buttons(
-            "_Cancel", Gtk.ResponseType.CANCEL, "_Open", Gtk.ResponseType.ACCEPT
-        )
-
-        dialog.connect("response", self.on_open_dialog_response)
-        dialog.show()
-
-    def on_open_dialog_response(self, dialog, response):
-        """Handle the response from the file chooser dialog."""
-        if response == Gtk.ResponseType.ACCEPT:
-            try:
-                file = dialog.get_file()
-                self.processor.load_image(file.get_path())
-                self.canvas.queue_draw()
-            except cairo.Error as e:
-                self.show_error(f"Failed to open image: {e}. Only valid PNG files are supported.")
-        dialog.destroy()
+        dialog = Gtk.FileDialog()
+        dialog.set_title("Please choose a file")
         
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+
+        filter_img = Gtk.FileFilter()
+        filter_img.set_name("Image files")
+        filter_img.add_mime_type("image/png")
+        filter_img.add_mime_type("image/jpeg")
+        filter_img.add_mime_type("image/gif")
+        filters.append(filter_img)
+
+        filter_all = Gtk.FileFilter()
+        filter_all.set_name("All files")
+        filter_all.add_pattern("*")
+        filters.append(filter_all)
+        
+        dialog.set_filters(filters)
+        dialog.set_default_filter(filter_img)
+
+        dialog.open(self, None, self._on_open_dialog_response)
+
+    def _on_open_dialog_response(self, dialog, result):
+        """Handle the response from the file chooser dialog."""
+        try:
+            file = dialog.open_finish(result)
+            if file:
+                file_path = file.get_path()
+
+                # Check file size restrictions (0.01MB to 8MB)
+                file_size = os.path.getsize(file_path)
+                min_size = 10 * 1024  # 0.01 MB
+                max_size = 8 * 1024 * 1024    # 8 MB
+
+                if not (min_size <= file_size <= max_size):
+                    self.show_error("File size must be between 0.01 MB and 8.0 MB.")
+                    return
+
+                self.processor.load_image(file_path)
+                self.canvas.queue_draw()
+        except GLib.Error as e:
+            if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                self.show_error(f"Failed to open file: {e}")
+        except cairo.Error as e:
+            self.show_error(f"Failed to open image: {e}. Only valid PNG files are supported.")
+        except Exception as e:
+            self.show_error(f"An error occurred while opening the file: {e}")
+
     def on_save_clicked(self, widget):
         """Handle the Save button click."""
-        dialog = Gtk.FileChooserDialog(
-            title="Save image as",
-            transient_for=self,
-            action=Gtk.FileChooserAction.SAVE,
-        )
-        dialog.add_buttons(
-            "_Cancel", Gtk.ResponseType.CANCEL, "_Save", Gtk.ResponseType.ACCEPT
-        )
+        dialog = Gtk.FileDialog()
+        dialog.set_title("Save image as")
+
+        # Add filter for PNG files
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filter_png = Gtk.FileFilter()
+        filter_png.set_name("PNG images")
+        filter_png.add_mime_type("image/png")
+        filter_png.add_suffix("png")
+        filters.append(filter_png)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(filter_png)
+
 
         # Pre-insert filename
         if self.processor.image_path:
             filename = os.path.basename(self.processor.image_path)
-            dialog.set_current_name(filename)
+            dialog.set_initial_name(filename)
         else:
-            dialog.set_current_name("unknown.png")
+            # Generate a timestamped filename, e.g., image-2023-10-27T10-30-00
+            now = datetime.datetime.now()
+            filename = now.strftime("image-%Y-%m-%dT%H-%M-%S.png")
+            dialog.set_initial_name(filename)
 
-        dialog.connect("response", self.on_save_dialog_response)
-        dialog.show()
+        dialog.save(self, None, self._on_save_dialog_response)
 
-    def on_save_dialog_response(self, dialog, response):
+    def _on_save_dialog_response(self, dialog, result):
         """Handle the response from the file chooser dialog."""
-        if response == Gtk.ResponseType.ACCEPT:
-            file = dialog.get_file()
-            self.processor.save_image(file.get_path())
-        dialog.destroy()
+        try:
+            file = dialog.save_finish(result)
+            if file:
+                self.processor.save_image(file.get_path())
+        except GLib.Error as e:
+            if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                self.show_error(f"Failed to save file: {e}")
+        except Exception as e:
+            self.show_error(f"An error occurred while saving the file: {e}")
 
     def on_tool_toggled(self, button, tool_name):
         """Handle tool selection from toggle buttons."""
