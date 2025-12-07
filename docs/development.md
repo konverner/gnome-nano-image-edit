@@ -38,8 +38,18 @@ pip install -e .
 Run the main application file:
 
 ```
-python - src.main
+python -m src.main
 ```
+
+### 4. Build after modifying the source
+
+1. Activate the virtual environment if needed: `source .venv/bin/activate`.
+2. Upgrade build tooling: `python -m pip install --upgrade build`.
+3. Produce artifacts: `python -m build`.
+4. Reinstall the wheel for verification: `python -m pip install --force-reinstall dist/gnome_nano_image_edit-*.whl`.
+5. Launch to confirm:
+   - From source: `python -m src.main`
+   - From the installed wheel: `python -m gnome_nano_image_edit.main`
 
 ## Test checklist
 

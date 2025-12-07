@@ -32,9 +32,17 @@ Image Processing: pycairo
 
 # Installation
 
-...
+1. `python -m pip install --upgrade build`
+2. `python -m build`
+3. `python -m pip install --force-reinstall dist/gnome_nano_image_edit-*.whl`
 
-For development see: [./docs/development.md]
+After installation, launch with:
+
+```
+python -m src.main
+```
+
+For development see: [development guide](./docs/development.md)
 
 
 # Usage
