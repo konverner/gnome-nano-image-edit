@@ -17,7 +17,6 @@ from gi.repository import Gtk, Gio, Gdk, GLib
 from .processor import ImageProcessor
 from .manager import ToolManager
 from .canvas import CanvasWidget
-from pathlib import Path
 
 class MainWindow(Gtk.ApplicationWindow):
     """The main application window."""
@@ -30,7 +29,6 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.set_default_size(800, 600)
         self.set_title("GNOME Nano Image Edit")
-        self._configure_icon()
 
         # Header Bar
         header_bar = Gtk.HeaderBar()
@@ -160,14 +158,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Create a blank canvas by default so tools work immediately
         self.processor.create_blank_image()
-
-    def _configure_icon(self):
-        icons_dir = Path(__file__).resolve().parent / "assets" / "icons"
-        if not icons_dir.exists():
-            return
-        icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
-        icon_theme.add_search_path(str(icons_dir))
-        self.set_icon_name("gnome-nano-image-edit")
+        self.file_dialog = None
 
     def _update_tool_ui(self):
         """Show or hide tool-specific controls."""
@@ -341,93 +332,154 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def on_open_clicked(self, widget):
         """Handle the Open button click."""
-        dialog = Gtk.FileDialog()
-        dialog.set_title("Please choose a file")
-        
-        filters = Gio.ListStore.new(Gtk.FileFilter)
+        print("DEBUG: on_open_clicked called")
+        self.file_dialog = Gtk.FileChooserDialog(
+            title="Please choose a file",
+            transient_for=self,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        self.file_dialog.add_buttons(
+            "_Cancel", Gtk.ResponseType.CANCEL,
+            "_Open", Gtk.ResponseType.ACCEPT
+        )
+        print("DEBUG: Gtk.FileChooserDialog created")
 
         filter_img = Gtk.FileFilter()
         filter_img.set_name("Image files")
         filter_img.add_mime_type("image/png")
         filter_img.add_mime_type("image/jpeg")
         filter_img.add_mime_type("image/gif")
-        filters.append(filter_img)
+        self.file_dialog.add_filter(filter_img)
+        print("DEBUG: Image filter added")
 
         filter_all = Gtk.FileFilter()
         filter_all.set_name("All files")
         filter_all.add_pattern("*")
-        filters.append(filter_all)
-        
-        dialog.set_filters(filters)
-        dialog.set_default_filter(filter_img)
+        self.file_dialog.add_filter(filter_all)
+        print("DEBUG: All files filter added")
 
-        dialog.open(self, None, self._on_open_dialog_response)
+        self.file_dialog.connect("response", self._on_open_dialog_response)
+        print("DEBUG: 'response' signal connected")
+        self.file_dialog.show()
+        print("DEBUG: dialog.show() called")
 
-    def _on_open_dialog_response(self, dialog, result):
+    def _on_open_dialog_response(self, dialog, response_id):
         """Handle the response from the file chooser dialog."""
-        try:
-            file = dialog.open_finish(result)
-            if file:
-                file_path = file.get_path()
+        print(f"DEBUG: _on_open_dialog_response called with response_id: {response_id}")
+        if response_id == Gtk.ResponseType.ACCEPT:
+            print("DEBUG: Response is ACCEPT")
+            try:
+                file = dialog.get_file()
+                if file:
+                    file_path = file.get_path()
+                    print(f"DEBUG: File selected: {file_path}")
 
-                # Check file size restrictions (0.01MB to 8MB)
-                file_size = os.path.getsize(file_path)
-                min_size = 10 * 1024  # 0.01 MB
-                max_size = 8 * 1024 * 1024    # 8 MB
+                    # Check file size restrictions (0.01MB to 8MB)
+                    file_size = os.path.getsize(file_path)
+                    min_size = 10 * 1024  # 0.01 MB
+                    max_size = 8 * 1024 * 1024    # 8 MB
 
-                if not (min_size <= file_size <= max_size):
-                    self.show_error("File size must be between 0.01 MB and 8.0 MB.")
-                    return
-
-                self.processor.load_image(file_path)
-                self.canvas.queue_draw()
-        except GLib.Error as e:
-            if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                    if not (min_size <= file_size <= max_size):
+                        print("DEBUG: File size error")
+                        self.show_error("File size must be between 0.01 MB and 8.0 MB.")
+                    else:
+                        print("DEBUG: Loading image...")
+                        self.processor.load_image(file_path)
+                        self.canvas.queue_draw()
+                        print("DEBUG: Image loaded and canvas queued for draw")
+                else:
+                    print("DEBUG: dialog.get_file() returned None")
+            except GLib.Error as e:
+                print(f"DEBUG: GLib.Error: {e}")
                 self.show_error(f"Failed to open file: {e}")
-        except cairo.Error as e:
-            self.show_error(f"Failed to open image: {e}. Only valid PNG files are supported.")
-        except Exception as e:
-            self.show_error(f"An error occurred while opening the file: {e}")
+            except cairo.Error as e:
+                print(f"DEBUG: cairo.Error: {e}")
+                self.show_error(f"Failed to open image: {e}. The file may be corrupt or an unsupported format.")
+            except Exception as e:
+                print(f"DEBUG: Exception: {e}")
+                self.show_error(f"An error occurred while opening the file: {e}")
+        elif response_id == Gtk.ResponseType.CANCEL:
+            print("DEBUG: Response is CANCEL")
+        else:
+            print(f"DEBUG: Response is something else: {response_id}")
+
+        dialog.destroy()
+        self.file_dialog = None
+        print("DEBUG: dialog destroyed")
 
     def on_save_clicked(self, widget):
         """Handle the Save button click."""
-        dialog = Gtk.FileDialog()
-        dialog.set_title("Save image as")
+        print("DEBUG: on_save_clicked called")
+        if self.file_dialog is not None:
+            print("DEBUG: Another dialog is already open.")
+            return
 
-        # Add filter for PNG files
-        filters = Gio.ListStore.new(Gtk.FileFilter)
-        filter_png = Gtk.FileFilter()
-        filter_png.set_name("PNG images")
-        filter_png.add_mime_type("image/png")
-        filter_png.add_suffix("png")
-        filters.append(filter_png)
-        dialog.set_filters(filters)
-        dialog.set_default_filter(filter_png)
-
+        self.file_dialog = Gtk.FileChooserDialog(
+            title="Save Image As",
+            transient_for=self,
+            action=Gtk.FileChooserAction.SAVE
+        )
+        self.file_dialog.add_buttons(
+            "_Cancel", Gtk.ResponseType.CANCEL,
+            "_Save", Gtk.ResponseType.ACCEPT
+        )
+        print("DEBUG: Gtk.FileChooserDialog for save created")
 
         # Pre-insert filename
         if self.processor.image_path:
             filename = os.path.basename(self.processor.image_path)
-            dialog.set_initial_name(filename)
+            self.file_dialog.set_current_name(filename)
+            print(f"DEBUG: Setting initial name from existing path: {filename}")
         else:
-            # Generate a timestamped filename, e.g., image-2023-10-27T10-30-00
             now = datetime.datetime.now()
             filename = now.strftime("image-%Y-%m-%dT%H-%M-%S.png")
-            dialog.set_initial_name(filename)
+            self.file_dialog.set_current_name(filename)
+            print(f"DEBUG: Setting initial name to new timestamp: {filename}")
 
-        dialog.save(self, None, self._on_save_dialog_response)
+        # Add filter for PNG files
+        filter_png = Gtk.FileFilter()
+        filter_png.set_name("PNG images")
+        filter_png.add_mime_type("image/png")
+        filter_png.add_pattern("*.png")
+        self.file_dialog.add_filter(filter_png)
+        print("DEBUG: PNG filter added")
 
-    def _on_save_dialog_response(self, dialog, result):
+        self.file_dialog.connect("response", self._on_save_dialog_response)
+        print("DEBUG: 'response' signal connected for save")
+        self.file_dialog.show()
+        print("DEBUG: save dialog.show() called")
+
+    def _on_save_dialog_response(self, dialog, response_id):
         """Handle the response from the file chooser dialog."""
-        try:
-            file = dialog.save_finish(result)
-            if file:
-                self.processor.save_image(file.get_path())
-        except GLib.Error as e:
-            if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
-                self.show_error(f"Failed to save file: {e}")
-        except Exception as e:
-            self.show_error(f"An error occurred while saving the file: {e}")
+        print(f"DEBUG: _on_save_dialog_response called with response_id: {response_id}")
+        if response_id == Gtk.ResponseType.ACCEPT:
+            print("DEBUG: Save response is ACCEPT")
+            try:
+                file = dialog.get_file()
+                if file:
+                    path = file.get_path()
+                    print(f"DEBUG: Saving to path: {path}")
+                    # Ensure the filename has a .png extension if not provided
+                    if not path.lower().endswith('.png'):
+                        path += '.png'
+                        print(f"DEBUG: Appended .png, new path: {path}")
+                    self.processor.save_image(path)
+                    print("DEBUG: processor.save_image called")
+                else:
+                    print("DEBUG: dialog.get_file() returned None for save")
+            except GLib.Error as e:
+                print(f"DEBUG: GLib.Error on save: {e}")
+                if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                    self.show_error(f"Failed to save file: {e}")
+            except Exception as e:
+                print(f"DEBUG: Exception on save: {e}")
+                self.show_error(f"An error occurred while saving the file: {e}")
+        else:
+            print("DEBUG: Save response is not ACCEPT")
+
+        dialog.destroy()
+        self.file_dialog = None
+        print("DEBUG: save dialog destroyed")
 
     def on_tool_toggled(self, button, tool_name):
         """Handle tool selection from toggle buttons."""

@@ -4,13 +4,19 @@ This module handles all image data manipulation using Cairo surfaces,
 including loading, saving, editing operations, and undo/redo functionality.
 """
 
+import io
 import math
 
 import cairo
+import gi
+
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf
+
 
 class ImageProcessor:
     """Handles all image data and manipulation using Cairo surfaces.
-    
+
     This class manages the image state, editing operations like crop, cut, paste,
     brush strokes, text overlay, and provides undo/redo functionality.
     """
@@ -27,57 +33,52 @@ class ImageProcessor:
         self._brush_color = (255, 0, 0, 255)
         self._font_path = None
         self.image_path = None
-        
+
         self._undo_stack = []
         self._redo_stack = []
         self._max_undo_steps = 20
 
     def create_blank_image(
-        self,
-        width: int = 800,
-        height: int = 600,
-        color: tuple = (255, 255, 255, 255)
+        self, width: int = 800, height: int = 600, color: tuple = (255, 255, 255, 255)
     ) -> None:
         """Creates a blank image with the specified dimensions and color.
-        
+
         Args:
             width: Image width in pixels. Defaults to 800.
             height: Image height in pixels. Defaults to 600.
             color: RGBA color tuple (0-255). Defaults to white (255, 255, 255, 255).
         """
         self.clear_floating_selection()
-        
+
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
         ctx = cairo.Context(surface)
-        
+
         # Cairo uses normalized color values (0-1)
         r, g, b, a = [c / 255.0 for c in color]
         ctx.set_source_rgba(r, g, b, a)
         ctx.paint()
-        
+
         self._original_surface = surface
         self._current_surface = self._copy_surface(surface)
-        
+
         self.image_path = None
         self._undo_stack = []
         self._redo_stack = []
 
     def _copy_surface(self, surface: cairo.Surface) -> cairo.Surface:
         """Creates a deep copy of a Cairo surface.
-        
+
         Args:
             surface: The Cairo surface to copy.
-            
+
         Returns:
             A new Cairo surface with the same content, or None if surface is None.
         """
         if not surface:
             return None
-        
+
         new_surface = cairo.ImageSurface(
-            cairo.FORMAT_ARGB32,
-            surface.get_width(),
-            surface.get_height()
+            cairo.FORMAT_ARGB32, surface.get_width(), surface.get_height()
         )
         ctx = cairo.Context(new_surface)
         ctx.set_source_surface(surface)
@@ -85,28 +86,35 @@ class ImageProcessor:
         return new_surface
 
     def load_image(self, filepath: str) -> None:
-        """Loads an image from a PNG file.
-        
+        """Loads an image from a file using GdkPixbuf to support multiple formats.
+
         Args:
-            filepath: Path to the PNG image file to load.
-            
+            filepath: Path to the image file to load.
+
         Raises:
-            cairo.Error: If the file cannot be loaded as a PNG image.
+            Exception: If the file cannot be loaded or processed.
         """
         self.clear_floating_selection()
-        
-        # Note: cairo.ImageSurface.create_from_png is the most direct way,
-        # but only supports PNG. For other formats, we might need another library
-        # like GdkPixbuf to load, then draw it onto a Cairo surface.
-        # For now, we will stick to PNG for simplicity.
-        surface = cairo.ImageSurface.create_from_png(filepath)
-            
+
+        # Use GdkPixbuf to load the image, which supports many formats (JPEG, GIF, etc.)
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file(filepath)
+
+        # To get this into a Cairo surface, we can save it as a PNG to a memory buffer
+        # and then load it into Cairo from that buffer.
+        success, buffer = pixbuf.save_to_bufferv("png", [], [])
+        if not success:
+            raise Exception("Failed to convert image to PNG buffer.")
+
+        # Create a file-like object from the buffer
+        png_buffer = io.BytesIO(buffer)
+
+        # Load into a Cairo surface
+        surface = cairo.ImageSurface.create_from_png(png_buffer)
+
         # Ensure the surface is in ARGB32 format for consistency
         if surface.get_format() != cairo.FORMAT_ARGB32:
             new_surface = cairo.ImageSurface(
-                cairo.FORMAT_ARGB32,
-                surface.get_width(),
-                surface.get_height()
+                cairo.FORMAT_ARGB32, surface.get_width(), surface.get_height()
             )
             ctx = cairo.Context(new_surface)
             ctx.set_source_surface(surface)
@@ -115,7 +123,7 @@ class ImageProcessor:
 
         self._original_surface = surface
         self._current_surface = self._copy_surface(surface)
-        
+
         self.image_path = filepath
         self._undo_stack = []
         self._redo_stack = []
@@ -123,7 +131,7 @@ class ImageProcessor:
     @property
     def current_image(self) -> cairo.Surface:
         """Returns the current Cairo surface with any floating selection composited.
-        
+
         Returns:
             The current Cairo surface, with floating selection if present.
         """
@@ -134,7 +142,7 @@ class ImageProcessor:
             ctx.set_source_surface(
                 self._floating_selection_data,
                 self._floating_selection_position[0],
-                self._floating_selection_position[1]
+                self._floating_selection_position[1],
             )
             ctx.paint()
             return temp_surface
@@ -142,7 +150,7 @@ class ImageProcessor:
 
     def save_state(self) -> None:
         """Saves the current state to the undo stack.
-        
+
         Limits the undo stack to max_undo_steps entries and clears the redo stack.
         """
         if self._current_surface:
@@ -153,7 +161,7 @@ class ImageProcessor:
 
     def undo(self) -> bool:
         """Restores the previous state from the undo stack.
-        
+
         Returns:
             True if undo was successful, False if undo stack is empty.
         """
@@ -166,7 +174,7 @@ class ImageProcessor:
 
     def redo(self) -> bool:
         """Restores the next state from the redo stack.
-        
+
         Returns:
             True if redo was successful, False if redo stack is empty.
         """
@@ -182,14 +190,14 @@ class ImageProcessor:
         if self._current_surface and selection_box:
             self.save_state()
             x, y, w, h = selection_box
-            
+
             new_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, int(w), int(h))
             ctx = cairo.Context(new_surface)
-            
+
             # Set the source to the relevant part of the old surface
             ctx.set_source_surface(self._current_surface, -x, -y)
             ctx.paint()
-            
+
             self._current_surface = new_surface
             self._selection_box = None
 
@@ -198,13 +206,15 @@ class ImageProcessor:
         if self._current_surface and selection_box:
             self.paste_selection()  # Paste any existing floating selection first
             self.save_state()
-            
+
             x, y, w, h = [int(val) for val in selection_box]
             self._selection_box = selection_box
             self._floating_selection_position = (x, y)
-            
+
             # Create a new surface for the floating selection
-            self._floating_selection_data = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
+            self._floating_selection_data = cairo.ImageSurface(
+                cairo.FORMAT_ARGB32, w, h
+            )
             cut_ctx = cairo.Context(self._floating_selection_data)
             cut_ctx.set_source_surface(self._current_surface, -x, -y)
             cut_ctx.paint()
@@ -219,19 +229,21 @@ class ImageProcessor:
         """Copies the selected area as a new Cairo surface without removing it."""
         if self._current_surface and selection_box:
             self.paste_selection()  # Paste any existing floating selection first
-            
+
             x, y, w, h = [int(val) for val in selection_box]
-            
+
             # Create a new surface for the copied data
             copied_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
             ctx = cairo.Context(copied_surface)
             ctx.set_source_surface(self._current_surface, -x, -y)
             ctx.paint()
-            
+
             return copied_surface
         return None
 
-    def set_floating_selection(self, surface: cairo.Surface, x: int = 0, y: int = 0) -> None:
+    def set_floating_selection(
+        self, surface: cairo.Surface, x: int = 0, y: int = 0
+    ) -> None:
         """Sets the floating selection from an external Cairo surface (e.g. paste)."""
         self.paste_selection()  # Commit previous
         self.save_state()  # Save state before adding new floating selection
@@ -243,11 +255,11 @@ class ImageProcessor:
         if self._current_surface and self._floating_selection_data:
             ctx = cairo.Context(self._current_surface)
             x, y = self._floating_selection_position
-            
+
             # By default, set_source_surface uses OPERATOR_OVER, which respects alpha
             ctx.set_source_surface(self._floating_selection_data, x, y)
             ctx.paint()
-            
+
             self.clear_floating_selection()
 
     def clear_floating_selection(self):
@@ -283,40 +295,39 @@ class ImageProcessor:
         """Draws a stroke along a list of (x, y) coordinates using Cairo."""
         if self._current_surface and len(points) >= 2:
             ctx = cairo.Context(self._current_surface)
-            
+
             # Set brush properties
             r, g, b, a = [c / 255.0 for c in self._brush_color]
             ctx.set_source_rgba(r, g, b, a)
             ctx.set_line_width(self._brush_size)
             ctx.set_line_cap(cairo.LINE_CAP_ROUND)
             ctx.set_line_join(cairo.LINE_JOIN_ROUND)
-            
+
             # Draw the line
             ctx.move_to(points[0][0], points[0][1])
             for point in points[1:]:
                 ctx.line_to(point[0], point[1])
-            
+
             ctx.stroke()
 
     def draw_brush_dab(self, point: tuple) -> None:
         """Draws a single dab of the brush at the given point using Cairo.
-        
+
         Args:
             point: Tuple of (x, y) coordinates for the brush dab center.
         """
         if self._current_surface:
             self.save_state()
             ctx = cairo.Context(self._current_surface)
-            
+
             r, g, b, a = [c / 255.0 for c in self._brush_color]
             ctx.set_source_rgba(r, g, b, a)
-            
+
             x, y = point
             radius = self._brush_size / 2.0
-            
+
             ctx.arc(x, y, radius, 0, 2 * math.pi)
             ctx.fill()
-
 
     def set_font_path(self, font_path: str) -> None:
         """Sets the font path for text tool."""
@@ -328,11 +339,11 @@ class ImageProcessor:
             self.paste_selection()
             self.save_state()
             ctx = cairo.Context(self._current_surface)
-            
+
             # Set text color
             r, g, b, a = [c / 255.0 for c in self._brush_color]
             ctx.set_source_rgba(r, g, b, a)
-            
+
             # Set font options
             # Note: While font family is selected, Cairo's native text API (toy text API)
             # has limited capabilities for font matching and may not always
@@ -341,18 +352,22 @@ class ImageProcessor:
             # would be required, but this is a significant integration effort.
             target_font = font_path if font_path else self._font_path
             if target_font:
-                 # This is a simplification. Real font handling is more complex.
-                ctx.select_font_face(target_font, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+                # This is a simplification. Real font handling is more complex.
+                ctx.select_font_face(
+                    target_font, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
+                )
             else:
                 # Default font
-                ctx.select_font_face("sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-                
+                ctx.select_font_face(
+                    "sans-serif", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
+                )
+
             ctx.set_font_size(self._text_size)
-            
+
             # Position and draw text
             ctx.move_to(x, y)
             ctx.show_text(text)
-            
+
     def save_image(self, filepath: str) -> None:
         """Saves the current Cairo surface to a PNG file."""
         if self._current_surface:
@@ -362,37 +377,43 @@ class ImageProcessor:
             self._current_surface.write_to_png(filepath)
             self.image_path = filepath
 
-    def resize_canvas(self, new_width, new_height, anchor=('left', 'top'), fill_color=(0, 0, 0, 0)):
+    def resize_canvas(
+        self, new_width, new_height, anchor=("left", "top"), fill_color=(0, 0, 0, 0)
+    ):
         """Resizes the canvas using Cairo, keeping the requested anchor fixed."""
         if not self._current_surface:
             return
         self.paste_selection()
         self.save_state()
-        
+
         new_width = max(1, int(new_width))
         new_height = max(1, int(new_height))
         anchor_x, anchor_y = anchor
-        
+
         # Create new surface and fill with color
         new_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, new_width, new_height)
         ctx = cairo.Context(new_surface)
         r, g, b, a = [c / 255.0 for c in fill_color]
         ctx.set_source_rgba(r, g, b, a)
         ctx.paint()
-        
+
         # Calculate offset and draw old surface onto new one
-        offset_x = self._compute_anchor_offset(anchor_x, self._current_surface.get_width(), new_width)
-        offset_y = self._compute_anchor_offset(anchor_y, self._current_surface.get_height(), new_height)
-        
+        offset_x = self._compute_anchor_offset(
+            anchor_x, self._current_surface.get_width(), new_width
+        )
+        offset_y = self._compute_anchor_offset(
+            anchor_y, self._current_surface.get_height(), new_height
+        )
+
         ctx.set_source_surface(self._current_surface, offset_x, offset_y)
         ctx.paint()
-        
+
         self._current_surface = new_surface
 
     @staticmethod
     def _compute_anchor_offset(anchor, old_size, new_size):
-        if anchor in ('left', 'top'):
+        if anchor in ("left", "top"):
             return 0
-        if anchor in ('right', 'bottom'):
+        if anchor in ("right", "bottom"):
             return new_size - old_size
         return (new_size - old_size) // 2

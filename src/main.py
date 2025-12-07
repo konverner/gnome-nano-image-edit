@@ -5,17 +5,17 @@ image editing application.
 """
 
 import sys
-import gi
+import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk  # noqa: E402
 
-from src.main_window import MainWindow
+from .window import MainWindow  # noqa: E402
 
 
 class GnomeNanoImageEdit(Gtk.Application):
     """The main GTK application class for GNOME Nano Image Edit.
-    
+
     This class manages the application lifecycle and creates the main window.
     """
 
@@ -26,7 +26,7 @@ class GnomeNanoImageEdit(Gtk.Application):
 
     def on_activate(self, app: Gtk.Application) -> None:
         """Handles application activation.
-        
+
         Args:
             app: The GTK application instance.
         """
@@ -36,12 +36,13 @@ class GnomeNanoImageEdit(Gtk.Application):
 
 def main() -> int:
     """Runs the application.
-    
+
     Returns:
         Exit status code.
     """
     app = GnomeNanoImageEdit()
     return app.run(sys.argv)
+
 
 if __name__ == "__main__":
     sys.exit(main())
