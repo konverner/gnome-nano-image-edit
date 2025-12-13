@@ -11,7 +11,7 @@ import cairo
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf
+from gi.repository import GdkPixbuf  # noqa: E402
 
 
 class ImageProcessor:
