@@ -1,0 +1,29 @@
+app-id: com.github.konverner.gnome-nano-image-edit
+runtime: org.gnome.Platform
+runtime-version: '45'
+sdk: org.gnome.Sdk
+command: gnome-nano-image-edit
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --filesystem=host
+
+modules:
+  - name: gnome-nano-image-edit
+    buildsystem: simple
+    build-commands:
+      - pip3 install --prefix=/app --no-deps .
+    sources:
+      - type: dir
+        path: .
+    modules:
+      - name: python3-pycairo
+        buildsystem: simple
+        build-commands:
+          - pip3 install --prefix=/app --no-deps pycairo
+        sources:
+          - type: file
+            url: https://files.pythonhosted.org/packages/eb/31/c693f537d22d63119b6d2343a55433061138a63562647596227139d633b6/pycairo-1.25.1.tar.gz
+            sha256: 7c1996f1f83de3a1406d07d257426998f8078a791d9f305643c37c3d962097a3
