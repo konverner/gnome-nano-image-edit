@@ -12,11 +12,13 @@ import cairo
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gio, Gdk, GLib
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gtk, Gio, Gdk, GLib  # noqa: E402
 
-from .processor import ImageProcessor
-from .manager import ToolManager
-from .canvas import CanvasWidget
+from .processor import ImageProcessor  # noqa: E402
+from .manager import ToolManager  # noqa: E402
+from .canvas import CanvasWidget  # noqa: E402
+
 
 class MainWindow(Gtk.ApplicationWindow):
     """The main application window."""
@@ -30,6 +32,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.set_default_size(800, 600)
         self.set_title("GNOME Nano Image Edit")
 
+        self._setup_icon()
+
         # Header Bar
         header_bar = Gtk.HeaderBar()
         self.set_titlebar(header_bar)
@@ -38,11 +42,20 @@ class MainWindow(Gtk.ApplicationWindow):
         open_button = Gtk.Button(label="Open")
         open_button.connect("clicked", self.on_open_clicked)
         header_bar.pack_start(open_button)
-        
+
         # Save Button
         save_button = Gtk.Button(label="Save")
         save_button.connect("clicked", self.on_save_clicked)
         header_bar.pack_start(save_button)
+
+        # Menu Button
+        menu_button = Gtk.MenuButton()
+        menu_button.set_icon_name("open-menu-symbolic")
+        header_bar.pack_end(menu_button)
+
+        menu = Gio.Menu()
+        menu.append("About", "win.about")
+        menu_button.set_menu_model(menu)
 
         # Main layout
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -59,15 +72,17 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # CSS Provider for styling
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"""
+        css_provider.load_from_data(
+            b"""
             .padded-button {
                 padding: 10px 20px;
             }
-        """)
+        """
+        )
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
             css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
         # Tool Buttons
@@ -93,8 +108,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.text_button.set_group(self.select_button)
 
         tool_box.append(self.text_button)
-        
-        
+
         # Connect signals
         self.select_button.connect("toggled", self.on_tool_toggled, "select")
         self.crop_button.connect("toggled", self.on_tool_toggled, "crop")
@@ -102,13 +116,17 @@ class MainWindow(Gtk.ApplicationWindow):
         self.text_button.connect("toggled", self.on_tool_toggled, "text")
 
         # Brush Controls (initially hidden)
-        self.brush_controls_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.brush_controls_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=12
+        )
         self.brush_controls_box.set_visible(False)
         self.brush_controls_box.set_hexpand(True)
         toolbar_container.append(self.brush_controls_box)
 
         # Brush Size
-        self.brush_size_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 1, 100, 1)
+        self.brush_size_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 1, 100, 1
+        )
         self.brush_size_scale.set_value(10)
         self.brush_size_scale.set_hexpand(True)
         self.brush_size_scale.connect("value-changed", self.on_tool_size_changed)
@@ -122,7 +140,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.brush_controls_box.append(color_label)
         self.brush_color_button = Gtk.ColorButton()
         default_rgba = Gdk.RGBA()
-        default_rgba.parse("#ff0000ff") # let us use red by default
+        default_rgba.parse("#ff0000ff")  # let us use red by default
         self.brush_color_button.set_rgba(default_rgba)
         self.brush_color_button.connect("color-set", self.on_brush_color_set)
         self.brush_controls_box.append(self.brush_color_button)
@@ -135,11 +153,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Canvas
         self.canvas = CanvasWidget(self.processor, self.manager)
-        
+
         # Overlay for text entry
         self.overlay = Gtk.Overlay()
         self.overlay.set_child(self.canvas)
-        
+
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_child(self.overlay)
         scrolled_window.set_vexpand(True)
@@ -160,37 +178,55 @@ class MainWindow(Gtk.ApplicationWindow):
         self.processor.create_blank_image()
         self.file_dialog = None
 
+    def _setup_icon(self):
+        """Configures the application icon by adding the assets directory to the icon theme."""
+        try:
+            display = Gdk.Display.get_default()
+            if display:
+                icon_theme = Gtk.IconTheme.get_for_display(display)
+
+                # Calculate path to icons directory relative to this file
+                base_dir = os.path.dirname(__file__)
+                icon_dir = os.path.join(base_dir, "assets", "icons")
+
+                if os.path.exists(icon_dir):
+                    icon_theme.add_search_path(icon_dir)
+                    print(f"DEBUG: Added icon path: {icon_dir}")
+                    self.set_icon_name("gnome-nano-image-edit")
+        except Exception as e:
+            print(f"Warning: Failed to set application icon: {e}")
+
     def _update_tool_ui(self):
         """Show or hide tool-specific controls."""
         tool = self.manager.current_tool
-        show_controls = tool in ['brush', 'text']
+        show_controls = tool in ["brush", "text"]
         self.brush_controls_box.set_visible(show_controls)
-        
+
         # Show/Hide specific controls based on tool
-        if tool == 'text':
+        if tool == "text":
             self.font_dropdown.set_visible(True)
         else:
             self.font_dropdown.set_visible(False)
-        
+
         # Update scale value based on tool
-        if tool == 'brush':
+        if tool == "brush":
             self.brush_size_scale.set_value(self.processor._brush_size)
-        elif tool == 'text':
+        elif tool == "text":
             self.brush_size_scale.set_value(self.processor._text_size)
 
-        if tool != 'text':
+        if tool != "text":
             self.canvas.hide_text_entry()
 
     def on_key_pressed(self, controller, keyval, keycode, state):
         """Handle key press events."""
-        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
-        
+        ctrl = state & Gdk.ModifierType.CONTROL_MASK
+
         # Undo: Ctrl+Z
         if ctrl and keyval == Gdk.KEY_z:
             if self.processor.undo():
                 self.canvas.queue_draw()
             return True
-            
+
         # Redo: Ctrl+Y
         if ctrl and keyval == Gdk.KEY_y:
             if self.processor.redo():
@@ -226,7 +262,6 @@ class MainWindow(Gtk.ApplicationWindow):
         if ctrl and keyval == Gdk.KEY_t:
             self.text_button.set_active(True)
             return True
-
 
         # Delete key handling
         if keyval == Gdk.KEY_Delete:
@@ -273,18 +308,18 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _copy_image_to_clipboard(self, surface: cairo.Surface) -> None:
         """Helper to put Cairo surface on clipboard.
-        
+
         Args:
             surface: The Cairo surface to copy to clipboard.
         """
         clipboard = Gdk.Display.get_default().get_clipboard()
-        
+
         # Convert Cairo surface to GdkTexture
         b = io.BytesIO()
         surface.write_to_png(b)
         data = b.getvalue()
         bytes_obj = GLib.Bytes.new(data)
-        
+
         content = Gdk.ContentProvider.new_for_bytes("image/png", bytes_obj)
         clipboard.set_content(content)
 
@@ -295,7 +330,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_paste_texture_ready(self, clipboard: Gdk.Clipboard, result) -> None:
         """Callback for paste operation when texture is ready.
-        
+
         Args:
             clipboard: The clipboard object.
             result: The async result object.
@@ -305,14 +340,14 @@ class MainWindow(Gtk.ApplicationWindow):
             if texture:
                 # Convert GdkTexture to Cairo Surface
                 bytes_obj = texture.save_to_png_bytes()
-                
+
                 # Create a Cairo surface from the PNG data
                 with io.BytesIO(bytes_obj.get_data()) as f:
                     surface = cairo.ImageSurface.create_from_png(f)
 
                 # Set as floating selection
                 self.processor.set_floating_selection(surface, 0, 0)
-                self.manager.current_tool = 'select'  # Switch to select tool to move it
+                self.manager.current_tool = "select"  # Switch to select tool to move it
                 self.canvas.queue_draw()
         except Exception as e:
             self.show_error(f"Failed to paste image: {e}")
@@ -324,8 +359,8 @@ class MainWindow(Gtk.ApplicationWindow):
             modal=True,
             message_type=Gtk.MessageType.ERROR,
             buttons=Gtk.ButtonsType.OK,
-            text="Error", # Main error title
-            secondary_text=message, # Detailed error message
+            text="Error",  # Main error title
+            secondary_text=message,  # Detailed error message
         )
         dialog.connect("response", lambda d, r: d.destroy())
         dialog.present()
@@ -339,8 +374,7 @@ class MainWindow(Gtk.ApplicationWindow):
             action=Gtk.FileChooserAction.OPEN,
         )
         self.file_dialog.add_buttons(
-            "_Cancel", Gtk.ResponseType.CANCEL,
-            "_Open", Gtk.ResponseType.ACCEPT
+            "_Cancel", Gtk.ResponseType.CANCEL, "_Open", Gtk.ResponseType.ACCEPT
         )
         print("DEBUG: Gtk.FileChooserDialog created")
 
@@ -377,7 +411,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     # Check file size restrictions (0.01MB to 8MB)
                     file_size = os.path.getsize(file_path)
                     min_size = 10 * 1024  # 0.01 MB
-                    max_size = 8 * 1024 * 1024    # 8 MB
+                    max_size = 8 * 1024 * 1024  # 8 MB
 
                     if not (min_size <= file_size <= max_size):
                         print("DEBUG: File size error")
@@ -394,7 +428,9 @@ class MainWindow(Gtk.ApplicationWindow):
                 self.show_error(f"Failed to open file: {e}")
             except cairo.Error as e:
                 print(f"DEBUG: cairo.Error: {e}")
-                self.show_error(f"Failed to open image: {e}. The file may be corrupt or an unsupported format.")
+                self.show_error(
+                    f"Failed to open image: {e}. The file may be corrupt or an unsupported format."
+                )
             except Exception as e:
                 print(f"DEBUG: Exception: {e}")
                 self.show_error(f"An error occurred while opening the file: {e}")
@@ -415,13 +451,10 @@ class MainWindow(Gtk.ApplicationWindow):
             return
 
         self.file_dialog = Gtk.FileChooserDialog(
-            title="Save Image As",
-            transient_for=self,
-            action=Gtk.FileChooserAction.SAVE
+            title="Save Image As", transient_for=self, action=Gtk.FileChooserAction.SAVE
         )
         self.file_dialog.add_buttons(
-            "_Cancel", Gtk.ResponseType.CANCEL,
-            "_Save", Gtk.ResponseType.ACCEPT
+            "_Cancel", Gtk.ResponseType.CANCEL, "_Save", Gtk.ResponseType.ACCEPT
         )
         print("DEBUG: Gtk.FileChooserDialog for save created")
 
@@ -460,8 +493,8 @@ class MainWindow(Gtk.ApplicationWindow):
                     path = file.get_path()
                     print(f"DEBUG: Saving to path: {path}")
                     # Ensure the filename has a .png extension if not provided
-                    if not path.lower().endswith('.png'):
-                        path += '.png'
+                    if not path.lower().endswith(".png"):
+                        path += ".png"
                         print(f"DEBUG: Appended .png, new path: {path}")
                     self.processor.save_image(path)
                     print("DEBUG: processor.save_image called")
@@ -496,9 +529,9 @@ class MainWindow(Gtk.ApplicationWindow):
     def on_tool_size_changed(self, scale):
         """Handle tool size change."""
         size = int(scale.get_value())
-        if self.manager.current_tool == 'brush':
+        if self.manager.current_tool == "brush":
             self.processor.set_brush_size(size)
-        elif self.manager.current_tool == 'text':
+        elif self.manager.current_tool == "text":
             self.processor.set_text_size(size)
 
     def on_brush_color_set(self, color_button):
@@ -509,7 +542,7 @@ class MainWindow(Gtk.ApplicationWindow):
             int(color.red * 255),
             int(color.green * 255),
             int(color.blue * 255),
-            int(color.alpha * 255)
+            int(color.alpha * 255),
         )
         self.processor.set_brush_color(rgba_255)
         self.canvas.update_text_color(rgba_255)
@@ -519,6 +552,6 @@ class MainWindow(Gtk.ApplicationWindow):
         selected_item = dropdown.get_selected_item()
         if not selected_item:
             return
-            
+
         font_desc = selected_item.get_string()
         self.processor.set_font_path(font_desc)

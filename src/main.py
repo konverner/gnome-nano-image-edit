@@ -8,6 +8,7 @@ import sys
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk  # noqa: E402
 
 from .window import MainWindow  # noqa: E402
