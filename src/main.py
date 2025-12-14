@@ -9,30 +9,21 @@ import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk, Gio  # noqa: E402
 
 from .window import MainWindow  # noqa: E402
 
 
-class GnomeNanoImageEdit(Gtk.Application):
-    """The main GTK application class for GNOME Nano Image Edit.
+def on_activate(app):
+    """Handles application activation.
 
-    This class manages the application lifecycle and creates the main window.
+    Args:
+        app: The GTK application instance.
     """
-
-    def __init__(self) -> None:
-        """Initializes the GTK application."""
-        super().__init__(application_id="com.github.konverner.gnome-nano-image-edit")
-        self.connect("activate", self.on_activate)
-
-    def on_activate(self, app: Gtk.Application) -> None:
-        """Handles application activation.
-
-        Args:
-            app: The GTK application instance.
-        """
-        win = MainWindow(application=app)
-        win.present()
+    # Create the window inside the activate callback
+    # Ensure MainWindow accepts the application argument
+    win = MainWindow(application=app)
+    win.present()
 
 
 def main() -> int:
@@ -41,7 +32,10 @@ def main() -> int:
     Returns:
         Exit status code.
     """
-    app = GnomeNanoImageEdit()
+    # Ensure application_id matches the Flatpak ID
+    app = Gtk.Application(application_id='com.github.konverner.gnome-nano-image-edit',
+                          flags=Gio.ApplicationFlags.FLAGS_NONE)
+    app.connect('activate', on_activate)
     return app.run(sys.argv)
 
 
