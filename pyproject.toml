@@ -17,6 +17,10 @@ dependencies = [
 Homepage = "https://github.com/konverner/gnome-nano-image-edit"
 Repository = "https://github.com/konverner/gnome-nano-image-edit"
 
+[project.scripts]
+gnome-nano-image-edit = "gnome_nano_image_edit.main:main"
+gnie = "gnome_nano_image_edit.main:main"
+
 [tool.setuptools]
 package-dir = { "" = "src" }
 include-package-data = true

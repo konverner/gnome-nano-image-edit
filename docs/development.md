@@ -51,6 +51,39 @@ python -m src.main
    - From source: `python -m src.main`
    - From the installed wheel: `python -m gnome_nano_image_edit.main`
 
+### 5. Testing Flatpak Build
+
+Flatpak is a utility for software deployment and package management for Linux. To test the Flatpak build locally before publishing:
+
+1.  **Install flatpak-builder**:
+    ```bash
+    sudo apt install flatpak-builder
+    ```
+
+2.  **Install the required runtime and SDK**:
+
+    Add the Flathub remote if it doesn't exist:
+    ```bash
+    flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    ```
+
+    Install the runtimes:
+    ```bash
+    flatpak install --user flathub org.gnome.Platform//47 org.gnome.Sdk//47
+    ```
+
+    > **Note:** If you receive a warning about `XDG_DATA_DIRS` not being in the search path, applications installed by Flatpak may not appear in your desktop menu until you restart your session.
+
+3.  **Build and install the application locally**:
+    ```bash
+    flatpak-builder --user --install --force-clean build-dir com.github.konverner.gnome-nano-image-edit.yml
+    ```
+
+4.  **Run the application**:
+    ```bash
+    flatpak run com.github.konverner.gnome-nano-image-edit
+    ```
+
 ## Test checklist
 
 This checklist covers core features, stability, and user experience to ensure a smooth release.
