@@ -5,6 +5,7 @@
   <project_license>MIT</project_license>
   <name>Nano Image Edit</name>
   <summary>A lightweight image editing utility</summary>
+  <icon type="stock">com.github.konverner.gnome-nano-image-edit</icon>
   <description>
     <p>A lightweight image editing utility tailored for GNOME.</p>
   </description>

@@ -179,20 +179,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self.file_dialog = None
 
     def _setup_icon(self):
-        """Configures the application icon by adding the assets directory to the icon theme."""
+        """Configure the application icon from the installed icon theme."""
         try:
-            display = Gdk.Display.get_default()
-            if display:
-                icon_theme = Gtk.IconTheme.get_for_display(display)
-
-                # Calculate path to icons directory relative to this file
-                base_dir = os.path.dirname(__file__)
-                icon_dir = os.path.join(base_dir, "assets", "icons")
-
-                if os.path.exists(icon_dir):
-                    icon_theme.add_search_path(icon_dir)
-                    # Icon name must match `com.github.konverner.gnome-nano-image-edit.svg`
-                    self.set_icon_name("com.github.konverner.gnome-nano-image-edit")
+            self.set_icon_name("com.github.konverner.gnome-nano-image-edit")
         except Exception as e:
             print(f"Warning: Failed to set application icon: {e}")
 

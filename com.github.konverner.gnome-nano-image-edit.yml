@@ -23,10 +23,13 @@ modules:
       # Install desktop integration files
       - install -D com.github.konverner.gnome-nano-image-edit.desktop /app/share/applications/com.github.konverner.gnome-nano-image-edit.desktop
       - install -D com.github.konverner.gnome-nano-image-edit.metainfo.xml /app/share/metainfo/com.github.konverner.gnome-nano-image-edit.metainfo.xml
-      - install -D src/assets/icons/com.github.konverner.gnome-nano-image-edit.svg /app/share/icons/hicolor/128x128/apps/com.github.konverner.gnome-nano-image-edit.svg
+      # Install icons from the hicolor directory structure
+      - mkdir -p /app/share/icons
+      - cp -r src/assets/icons/hicolor /app/share/icons/
+      # Extra locations to satisfy appstreamcli icon lookup
+      - install -D src/assets/icons/hicolor/scalable/apps/com.github.konverner.gnome-nano-image-edit.svg /app/share/pixmaps/com.github.konverner.gnome-nano-image-edit.svg
     sources:
       - type: git
         url: https://github.com/konverner/gnome-nano-image-edit.git
-        tag: v0.1.0-beta.4
-        commit: 362ab2d48e5f99ae43025779a1608a00a12c5c99
-  
+        tag: v0.1.0-beta.5
+        commit: d52a51fcd252404449540ed48bbe3cf141579855
