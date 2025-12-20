@@ -38,10 +38,11 @@ def main() -> int:
         Exit status code.
     """
     # Ensure application_id matches the Flatpak ID
-    app = Gtk.Application(application_id='com.github.konverner.gnome-nano-image-edit',
-                          flags=Gio.ApplicationFlags.FLAGS_NONE)
-    app.set_default_icon_name("com.github.konverner.gnome-nano-image-edit")
-    app.connect('activate', on_activate)
+    app = Gtk.Application(
+        application_id="com.github.konverner.gnome-nano-image-edit",
+        flags=Gio.ApplicationFlags.FLAGS_NONE,
+    )
+    app.connect("activate", on_activate)
     return app.run(sys.argv)
 
 
