@@ -74,7 +74,7 @@ Flatpak is a utility for software deployment and package management for Linux. T
 
 3.  **Build and install the application locally**:
     ```bash
-    flatpak-builder --user --install --force-clean build-dir com.github.konverner.gnome-nano-image-edit.yml
+    flatpak-builder --disable-rofiles-fuse --user --install --force-clean build-dir com.github.konverner.gnome-nano-image-edit.yml
     ```
 
 4.  **Run the application**:

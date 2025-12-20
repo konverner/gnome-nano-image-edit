@@ -31,5 +31,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/konverner/gnome-nano-image-edit.git
-        tag: v0.1.0-beta.5
-        commit: d52a51fcd252404449540ed48bbe3cf141579855
+        tag: v0.1.0-beta.6
+        commit: 2f2cc1ea92b6adc239782f80e524c5a435dc7ac1

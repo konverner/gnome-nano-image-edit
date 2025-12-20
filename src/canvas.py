@@ -68,8 +68,9 @@ class CanvasWidget(Gtk.DrawingArea):
         self._text_entry = None
         self._overlay = None
         self._text_entry_pos = None
-        self._drag_mode = "none"  # 'none', 'select', 'move'
+        self._drag_mode = "none"  # 'none', 'select', 'move', 'move_crop_image'
         self._drag_start_offset = (0, 0)
+        self._start_pan_offset = (0, 0)
         self._image_display_rect = None
         self._hover_resize_handle = None
         self._active_resize_handle = None
@@ -224,15 +225,52 @@ class CanvasWidget(Gtk.DrawingArea):
         cr.save()
         cr.translate(x_offset, y_offset)
         cr.scale(scale, scale)
-        cr.set_source_surface(surface, 0, 0)
+
+        if self.processor._is_cropping:
+            pan_x, pan_y = self.processor._crop_pan_offset
+            cr.set_source_surface(surface, pan_x, pan_y)
+        else:
+            cr.set_source_surface(surface, 0, 0)
+
         cr.get_source().set_filter(cairo.FILTER_BEST)
         cr.paint()
         cr.restore()
 
-        # Draw selection rectangle only when creating a new selection
-        if (
-            self._drag_mode == "select" or self._drag_mode == "text_create"
-        ) and self.selection_box:
+        # Draw crop overlay or selection rectangle
+        if self.processor._is_cropping and self.processor._selection_box:
+            cr.save()
+            x, y, w, h = self.processor._selection_box
+            p1 = self._image_to_canvas_coords(x, y)
+            p2 = self._image_to_canvas_coords(x + w, y + h)
+            if p1 and p2:
+                canvas_x, canvas_y = p1
+                canvas_w, canvas_h = p2[0] - p1[0], p2[1] - p1[1]
+
+                cr.rectangle(0, 0, width, height)
+                cr.rectangle(canvas_x, canvas_y, canvas_w, canvas_h)
+                cr.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+                cr.set_source_rgba(0, 0, 0, 0.5)
+                cr.fill()
+
+                cr.set_source_rgba(1, 1, 1, 0.7)
+                cr.set_dash([3, 3])
+                cr.set_line_width(1)
+                cr.rectangle(canvas_x, canvas_y, canvas_w, canvas_h)
+                cr.stroke()
+            cr.restore()
+        elif self.processor._selection_box and not self.processor._floating_selection_data:
+            x, y, w, h = self.processor._selection_box
+            p1 = self._image_to_canvas_coords(x, y)
+            p2 = self._image_to_canvas_coords(x + w, y + h)
+            if p1 and p2:
+                cr.save()
+                cr.set_source_rgba(0.1, 0.4, 0.8, 0.5)
+                cr.set_dash([5, 5])
+                cr.set_line_width(2)
+                cr.rectangle(p1[0], p1[1], p2[0] - p1[0], p2[1] - p1[1])
+                cr.stroke()
+                cr.restore()
+        elif (self._drag_mode == "select" or self._drag_mode == "text_create") and self.selection_box:
             cr.save()
             cr.set_source_rgba(0.1, 0.4, 0.8, 0.5)
             cr.set_dash([5, 5])
@@ -253,6 +291,52 @@ class CanvasWidget(Gtk.DrawingArea):
         if handle != self._hover_resize_handle:
             self._hover_resize_handle = handle
             self._update_cursor_for_handle(handle)
+
+        if not handle and self.processor._is_cropping and self.processor._selection_box:
+            sel_x, sel_y, sel_w, sel_h = self.processor._selection_box
+            p1 = self._image_to_canvas_coords(sel_x, sel_y)
+            p2 = self._image_to_canvas_coords(sel_x + sel_w, sel_y + sel_h)
+            if p1 and p2:
+                cx1, cy1 = p1
+                cx2, cy2 = p2
+                if cx1 <= x <= cx2 and cy1 <= y <= cy2:
+                    cursor = Gdk.Cursor.new_from_name("move")
+                    self.set_cursor(cursor)
+                elif self._hover_resize_handle is None:
+                    self.set_cursor(None)
+        
+        elif not handle and self.manager.current_tool == "select":
+            # Check for hover over selection box (floating or not)
+            box = None
+            if self.processor._floating_selection_data:
+                 # If floating, use its position
+                 pos = self.processor._floating_selection_position
+                 w = self.processor._floating_selection_data.get_width()
+                 h = self.processor._floating_selection_data.get_height()
+                 box = (pos[0], pos[1], w, h)
+            elif self.processor._selection_box:
+                 box = self.processor._selection_box
+            
+            if box:
+                 bx, by, bw, bh = box
+                 p1 = self._image_to_canvas_coords(bx, by)
+                 p2 = self._image_to_canvas_coords(bx + bw, by + bh)
+                 if p1 and p2:
+                      cx1, cy1 = p1
+                      cx2, cy2 = p2
+                      if cx1 <= x <= cx2 and cy1 <= y <= cy2:
+                           cursor = Gdk.Cursor.new_from_name("move")
+                           self.set_cursor(cursor)
+                      elif self._hover_resize_handle is None:
+                           self.set_cursor(None)
+                 elif self._hover_resize_handle is None:
+                       self.set_cursor(None)
+            elif self._hover_resize_handle is None:
+                self.set_cursor(None)
+
+        elif not handle and self._hover_resize_handle is None:
+             # Ensure cursor is reset if we left the handle and aren't over crop or selection
+             self.set_cursor(None)
 
     def on_motion_leave(self, controller):
         if self._canvas_resize_in_progress:
@@ -297,10 +381,16 @@ class CanvasWidget(Gtk.DrawingArea):
             self._canvas_resize_in_progress = True
             gesture.set_state(Gtk.EventSequenceState.CLAIMED)
             return
-
-        # Skip drag operations for text tool - clicks are handled by on_canvas_pressed
-        # if self.manager.current_tool == 'text':
-        #     return
+        
+        if self.processor._is_cropping:
+            sel_x, sel_y, sel_w, sel_h = self.processor._selection_box
+            p1 = self._image_to_canvas_coords(sel_x, sel_y)
+            p2 = self._image_to_canvas_coords(sel_x + sel_w, sel_y + sel_h)
+            if p1 and p2 and p1[0] <= start_x <= p2[0] and p1[1] <= start_y <= p2[1]:
+                self._drag_mode = "move_crop_image"
+                self._drag_start_offset = (start_x, start_y)
+                self._start_pan_offset = self.processor._crop_pan_offset
+                return
 
         # If we are already editing text, clicking outside should commit it.
         # But drag begin might be the start of a new text box.
@@ -342,12 +432,34 @@ class CanvasWidget(Gtk.DrawingArea):
                     # Clicked outside, so paste and start new selection
                     self.processor.paste_selection()
                     self._drag_mode = "select"
+            
+            elif self.processor._selection_box:
+                # Check if drag starts inside existing selection box
+                sel_x, sel_y, sel_w, sel_h = self.processor._selection_box
+                p1 = self._image_to_canvas_coords(sel_x, sel_y)
+                p2 = self._image_to_canvas_coords(sel_x + sel_w, sel_y + sel_h)
+
+                if (
+                    p1
+                    and p2
+                    and p1[0] <= start_x <= p2[0]
+                    and p1[1] <= start_y <= p2[1]
+                ):
+                    # Cut selection to make it floating
+                    self.processor.cut_selection(self.processor._selection_box)
+                    self._drag_mode = "move"
+                    
+                    # p1 is canvas coord of selection top-left
+                    self._drag_start_offset = (
+                        start_x - p1[0],
+                        start_y - p1[1],
+                    )
+                    self.queue_draw()
+                else:
+                    self._drag_mode = "select"
+
             else:
                 self._drag_mode = "select"
-
-        elif current_tool in ["crop"]:
-            self._drag_mode = "select"
-            self.selection_box = None
 
         elif current_tool == "brush":
             self._drag_mode = "brush"
@@ -366,7 +478,9 @@ class CanvasWidget(Gtk.DrawingArea):
             return
 
         if not self._start_point:
-            return
+            # This can happen if drag mode is move_crop_image
+            if self._drag_mode != "move_crop_image":
+                return
 
         result = gesture.get_offset()
         if isinstance(result, tuple):
@@ -379,7 +493,8 @@ class CanvasWidget(Gtk.DrawingArea):
         else:
             return
 
-        start_x, start_y = self._start_point
+        start_x, start_y = self._start_point if self._start_point else self._drag_start_offset
+
 
         if self._drag_mode == "select" or self._drag_mode == "text_create":
             x1 = min(start_x, start_x + offset_x)
@@ -397,6 +512,20 @@ class CanvasWidget(Gtk.DrawingArea):
             if scaled_pos:
                 self.processor.move_floating_selection(scaled_pos[0], scaled_pos[1])
                 self.queue_draw()
+        
+        elif self._drag_mode == "move_crop_image":
+            start_pan_x, start_pan_y = self._start_pan_offset
+            drag_start_x, drag_start_y = self._drag_start_offset
+            dx = (drag_start_x + offset_x) - drag_start_x
+            dy = (drag_start_y + offset_y) - drag_start_y
+
+            if self._image_display_rect:
+                scale = self._image_display_rect[4]
+                if scale > 0:
+                    img_dx = dx / scale
+                    img_dy = dy / scale
+                    self.processor._crop_pan_offset = (start_pan_x + img_dx, start_pan_y + img_dy)
+                    self.queue_draw()
 
         elif self._drag_mode == "brush":
             end_x = start_x + offset_x
@@ -430,11 +559,14 @@ class CanvasWidget(Gtk.DrawingArea):
         if self._drag_mode == "select" and self.selection_box:
             scaled_selection = self.get_scaled_selection()
             if scaled_selection and scaled_selection[2] > 0 and scaled_selection[3] > 0:
-                if self.manager.current_tool == "select":
-                    self.processor.cut_selection(scaled_selection)
-                elif self.manager.current_tool == "crop":
-                    # For crop, we just set the selection in the processor
-                    self.processor._selection_box = scaled_selection
+                # For select tool, we just define the selection area.
+                # Any existing floating selection is pasted in on_drag_begin.
+                if self.processor._is_cropping:
+                    self.processor.cancel_crop()
+                
+                self.processor.paste_selection()
+                self.processor._selection_box = scaled_selection
+
             self.selection_box = None
 
         self._drag_mode = "none"
@@ -505,13 +637,29 @@ class CanvasWidget(Gtk.DrawingArea):
     def on_canvas_pressed(self, gesture, n_press, x, y):
         if not self.processor.current_image:
             return
+
         image_point = self._canvas_to_image_coords(x, y)
+
+        # Handle selection clearing, but not if we are in crop mode
+        if self.processor._selection_box and not self.processor._floating_selection_data and not self.processor._is_cropping:
+            sel_x, sel_y, sel_w, sel_h = self.processor._selection_box
+            is_inside_selection = False
+            if image_point:
+                px, py = image_point
+                if sel_x <= px < sel_x + sel_w and sel_y <= py < sel_y + sel_h:
+                    is_inside_selection = True
+
+            if not is_inside_selection:
+                self.processor._selection_box = None
+                self.queue_draw()
+
         if image_point is None:
             # If click is outside image, paste any floating selection
             if self.processor._floating_selection_data:
                 self.processor.paste_selection()
                 self.queue_draw()
             return
+
         if self.manager.current_tool == "text":
             if self._text_entry:
                 self._finalize_text_entry()

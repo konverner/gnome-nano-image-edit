@@ -90,18 +90,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
         tool_box.append(self.select_button)
 
-        self.crop_button = Gtk.ToggleButton(label="Crop")
-        self.crop_button.set_group(self.select_button)
-
+        self.crop_button = Gtk.Button(label="Crop")
         tool_box.append(self.crop_button)
-
-        apply_crop_button = Gtk.Button(label="Apply Crop")
-        apply_crop_button.connect("clicked", self.on_apply_crop_clicked)
-        tool_box.append(apply_crop_button)
 
         self.brush_button = Gtk.ToggleButton(label="Brush")
         self.brush_button.set_group(self.select_button)
-
+        
         tool_box.append(self.brush_button)
 
         self.text_button = Gtk.ToggleButton(label="Text")
@@ -111,7 +105,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Connect signals
         self.select_button.connect("toggled", self.on_tool_toggled, "select")
-        self.crop_button.connect("toggled", self.on_tool_toggled, "crop")
+        self.crop_button.connect("clicked", self.on_crop_clicked)
         self.brush_button.connect("toggled", self.on_tool_toggled, "brush")
         self.text_button.connect("toggled", self.on_tool_toggled, "text")
 
@@ -435,6 +429,12 @@ class MainWindow(Gtk.ApplicationWindow):
     def on_save_clicked(self, widget):
         """Handle the Save button click."""
         print("DEBUG: on_save_clicked called")
+
+        # Auto-apply crop if pending
+        if self.processor._is_cropping:
+            self.processor.apply_crop()
+            self.canvas.queue_draw()
+
         if self.file_dialog is not None:
             print("DEBUG: Another dialog is already open.")
             return
@@ -506,14 +506,21 @@ class MainWindow(Gtk.ApplicationWindow):
     def on_tool_toggled(self, button, tool_name):
         """Handle tool selection from toggle buttons."""
         if button.get_active():
+            if self.processor._is_cropping:
+                self.processor.cancel_crop()
+                self.canvas.queue_draw()
             self.manager.current_tool = tool_name
             self._update_tool_ui()
 
-    def on_apply_crop_clicked(self, widget):
-        """Apply the crop based on the selection."""
-        if self.processor._selection_box:
-            self.processor.apply_crop(self.processor._selection_box)
-            self.canvas.queue_draw()
+    def on_crop_clicked(self, widget):
+        """Handle the crop button click."""
+        if self.processor._is_cropping:
+            self.processor.apply_crop()
+        elif self.processor._selection_box:
+            self.manager.current_tool = "select"  # Ensure no other tool is active
+            self.select_button.set_active(True)
+            self.processor.start_crop()
+        self.canvas.queue_draw()
 
     def on_tool_size_changed(self, scale):
         """Handle tool size change."""

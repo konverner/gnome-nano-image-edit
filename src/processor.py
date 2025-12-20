@@ -38,11 +38,14 @@ class ImageProcessor:
         self._redo_stack = []
         self._max_undo_steps = 20
 
+        self._is_cropping = False
+        self._crop_pan_offset = (0, 0)
+
     def create_blank_image(
         self, width: int = 800, height: int = 600, color: tuple = (255, 255, 255, 255)
     ) -> None:
         """Creates a blank image with the specified dimensions and color.
-
+        
         Args:
             width: Image width in pixels. Defaults to 800.
             height: Image height in pixels. Defaults to 600.
@@ -185,21 +188,32 @@ class ImageProcessor:
             return True
         return False
 
-    def apply_crop(self, selection_box: tuple) -> None:
+    def start_crop(self):
+        self.paste_selection()  # Finalize any floating selection
+        self._is_cropping = True
+        self._crop_pan_offset = (0, 0)  # Reset pan
+
+    def cancel_crop(self):
+        self._is_cropping = False
+        self._selection_box = None
+        self._crop_pan_offset = (0, 0)
+
+    def apply_crop(self) -> None:
         """Crops the image to the selection_box."""
-        if self._current_surface and selection_box:
+        if self._current_surface and self._selection_box and self._is_cropping:
             self.save_state()
-            x, y, w, h = selection_box
+            x, y, w, h = self._selection_box
+            pan_x, pan_y = self._crop_pan_offset
 
             new_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, int(w), int(h))
             ctx = cairo.Context(new_surface)
 
             # Set the source to the relevant part of the old surface
-            ctx.set_source_surface(self._current_surface, -x, -y)
+            ctx.set_source_surface(self._current_surface, -x + pan_x, -y + pan_y)
             ctx.paint()
 
             self._current_surface = new_surface
-            self._selection_box = None
+            self.cancel_crop()
 
     def cut_selection(self, selection_box):
         """Cuts the selected area and stores it as a Cairo surface."""
@@ -240,7 +254,7 @@ class ImageProcessor:
 
             return copied_surface
         return None
-
+        
     def set_floating_selection(
         self, surface: cairo.Surface, x: int = 0, y: int = 0
     ) -> None:
