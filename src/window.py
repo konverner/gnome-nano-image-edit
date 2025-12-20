@@ -191,8 +191,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
                 if os.path.exists(icon_dir):
                     icon_theme.add_search_path(icon_dir)
-                    # Icon name must match `gnome-nano-image-edit.svg`
-                    self.set_icon_name("gnome-nano-image-edit")
+                    # Icon name must match `com.github.konverner.gnome-nano-image-edit.svg`
+                    self.set_icon_name("com.github.konverner.gnome-nano-image-edit")
         except Exception as e:
             print(f"Warning: Failed to set application icon: {e}")
 
