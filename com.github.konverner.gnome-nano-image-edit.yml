@@ -23,9 +23,10 @@ modules:
       # Install desktop integration files
       - install -D com.github.konverner.gnome-nano-image-edit.desktop /app/share/applications/com.github.konverner.gnome-nano-image-edit.desktop
       - install -D com.github.konverner.gnome-nano-image-edit.metainfo.xml /app/share/metainfo/com.github.konverner.gnome-nano-image-edit.metainfo.xml
-      - install -D src/assets/icons/gnome-nano-image-edit.png /app/share/icons/hicolor/128x128/apps/com.github.konverner.gnome-nano-image-edit.png
+      - install -D src/assets/icons/com.github.konverner.gnome-nano-image-edit.svg /app/share/icons/hicolor/128x128/apps/com.github.konverner.gnome-nano-image-edit.svg
     sources:
       - type: git
         url: https://github.com/konverner/gnome-nano-image-edit.git
         tag: v0.1.0-beta.4
-        commit: 97c0284276e565c2965bbe06f3120ec805b3fbb9
+        commit: 362ab2d48e5f99ae43025779a1608a00a12c5c99
+  
