@@ -9,29 +9,23 @@ finish-args:
   - --socket=wayland
   - --device=dri
   - --filesystem=host
+  - --filesystem=xdg-run/dconf
+  - --filesystem=~/.config/dconf:ro
+  - --talk-name=ca.desrt.dconf
+  - --env=DCONF_USER_CONFIG_DIR=.config/dconf
 
 modules:
   - name: gnome-nano-image-edit
     buildsystem: simple
     build-commands:
+      - touch src/__init__.py
       - pip3 install --prefix=/app --no-deps --no-build-isolation .
-      # Manually create the launch script since pyproject.toml doesn't define one yet
-      - mkdir -p /app/bin
-      - echo '#!/bin/sh' > /app/bin/gnome-nano-image-edit
-      - echo 'exec python3 -m gnome_nano_image_edit.main "$@"' >> /app/bin/gnome-nano-image-edit
-      - chmod +x /app/bin/gnome-nano-image-edit
-      - ln -s gnome-nano-image-edit /app/bin/gnie
       # Install desktop integration files
       - install -D com.github.konverner.gnome-nano-image-edit.desktop /app/share/applications/com.github.konverner.gnome-nano-image-edit.desktop
       - install -D com.github.konverner.gnome-nano-image-edit.metainfo.xml /app/share/metainfo/com.github.konverner.gnome-nano-image-edit.metainfo.xml
-      # Install icon (Updated path to match project structure)
       - install -D src/assets/icons/gnome-nano-image-edit.png /app/share/icons/hicolor/128x128/apps/com.github.konverner.gnome-nano-image-edit.png
     sources:
       - type: git
         url: https://github.com/konverner/gnome-nano-image-edit.git
-        tag: v0.1.0-beta
-        commit: 1728d344b50a1e5324acaa469e64d2f20ac35b4e
-      - type: file
-        path: com.github.konverner.gnome-nano-image-edit.desktop
-      - type: file
-        path: com.github.konverner.gnome-nano-image-edit.metainfo.xml
+        tag: v0.1.0-beta.4
+        commit: 97c0284276e565c2965bbe06f3120ec805b3fbb9

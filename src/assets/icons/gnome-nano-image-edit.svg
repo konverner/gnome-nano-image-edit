@@ -1,0 +1,61 @@
+<svg 
+  width="128" 
+  height="128" 
+  viewBox="0 0 128 128" 
+  fill="none" 
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7764d8" />
+      <stop offset="100%" stop-color="#7764d8" />
+    </linearGradient>
+    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#EF4444" />
+    </linearGradient>
+  </defs>
+
+  <rect 
+    x="8" 
+    y="8" 
+    width="112" 
+    height="112" 
+    rx="24" 
+    fill="url(#gradient1)" 
+  />
+
+  <rect 
+    x="24" 
+    y="32" 
+    width="80" 
+    height="64" 
+    rx="6" 
+    fill="rgba(255,255,255,0.15)" 
+    stroke="rgba(255,255,255,0.3)" 
+    stroke-width="2" 
+  />
+
+  <path 
+    d="M 32 84 L 50 60 L 68 76 L 88 48 L 96 58 L 96 88 L 32 88 Z" 
+    fill="rgba(255,255,255,0.25)" 
+  />
+
+  <circle 
+    cx="82" 
+    cy="48" 
+    r="6" 
+    fill="rgba(255,255,255,0.4)" 
+  />
+
+  <g transform="translate(80, 70)">
+    <rect 
+      x="0" 
+      y="0" 
+      width="28" 
+      height="28" 
+      rx="14" 
+      fill="url(#gradient2)" 
+    />
+  </g>
+</svg>

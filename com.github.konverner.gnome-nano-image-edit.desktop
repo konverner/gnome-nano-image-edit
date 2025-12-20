@@ -1,9 +1,10 @@
 [Desktop Entry]
-Name=Nano Image Edit
+Name=GNOME Nano Image Edit
 Comment=A lightweight image editing utility
 Exec=gnome-nano-image-edit
-Icon=com.github.konverner.gnome-nano-image-edit
+Icon=gnome-nano-image-edit
 Terminal=false
 Type=Application
 Categories=Graphics;GTK;
 StartupNotify=true
+StartupWMClass=gnome-nano-image-edit

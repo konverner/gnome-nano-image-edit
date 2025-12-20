@@ -23,6 +23,11 @@ def on_activate(app):
     # Create the window inside the activate callback
     # Ensure MainWindow accepts the application argument
     win = MainWindow(application=app)
+
+    # Request the system's preferred color scheme
+    settings = Gtk.Settings.get_default()
+    settings.set_property("gtk-application-prefer-dark-theme", True)
+
     win.present()
 
 
