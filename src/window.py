@@ -74,7 +74,17 @@ class MainWindow(Gtk.ApplicationWindow):
 
         menu = Gio.Menu()
         menu.append("About", "win.about")
+        menu.append("Keyboard Shortcuts", "win.shortcuts")
         menu_button.set_menu_model(menu)
+
+        # Actions
+        action_about = Gio.SimpleAction.new("about", None)
+        action_about.connect("activate", self.on_about_activated)
+        self.add_action(action_about)
+
+        action_shortcuts = Gio.SimpleAction.new("shortcuts", None)
+        action_shortcuts.connect("activate", self.on_shortcuts_activated)
+        self.add_action(action_shortcuts)
 
         # Main layout
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -181,6 +191,100 @@ class MainWindow(Gtk.ApplicationWindow):
         # Create a blank canvas by default so tools work immediately
         self.processor.create_blank_image()
         self.file_dialog = None
+
+    def on_about_activated(self, widget, _):
+        about_dialog = Gtk.AboutDialog(
+            transient_for=self,
+            modal=True,
+            program_name="GNOME Nano Image Edit",
+            version="0.1.0",
+            copyright="© 2025-2026 Verner K.",
+            license_type=Gtk.License.GPL_3_0,
+            website="https://github.com/konverner/gnome-nano-image-edit",
+            comments="This program comes with absolutely no warranty.",
+            authors=["Verner K."], # Optional
+            # translators=["Your Name <your.email@example.com>"], # Optional
+        )
+        # Set the application icon
+        try:
+            about_dialog.set_logo_icon_name("com.github.konverner.gnome-nano-image-edit")
+        except Exception as e:
+            print(f"Warning: Failed to set about dialog icon: {e}")
+        about_dialog.present()
+
+    def on_shortcuts_activated(self, widget, _):
+        shortcuts_window = Gtk.ShortcutsWindow(
+            transient_for=self,
+            modal=True,
+            title="Keyboard Shortcuts"
+        )
+
+        # Create a section for general shortcuts
+        section_general = Gtk.ShortcutsSection(title="General")
+        shortcuts_window.add_section(section_general)
+
+        # Create a group within the section
+        group_general = Gtk.ShortcutsGroup(title="General Actions")
+        section_general.add_group(group_general)
+
+        # Add shortcuts to the group
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Open Image",
+                accelerator="<Control>o"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Save Image",
+                accelerator="<Control>s"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Undo",
+                accelerator="<Control>z"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Redo",
+                accelerator="<Control>y"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Copy Selection",
+                accelerator="<Control>c"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Cut Selection",
+                accelerator="<Control>x"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Paste Selection",
+                accelerator="<Control>v"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Activate Text Tool",
+                accelerator="<Control>t"
+            )
+        )
+        group_general.add_shortcut(
+            Gtk.ShortcutsShortcut(
+                title="Delete Selection",
+                accelerator="Delete"
+            )
+        )
+
+
+        shortcuts_window.present()
 
     def _setup_icon(self):
         """Configure the application icon from the installed icon theme."""
