@@ -13,11 +13,13 @@ from gi.repository import Gtk, Gdk  # noqa: E402
 
 def _create_text_css_provider(
     color_rgba: tuple = (255, 255, 255, 255),
+    font_size: float = 20.0,
 ) -> Gtk.CssProvider:
     """Creates a CSS provider with the specified text color.
 
     Args:
         color_rgba: RGBA color tuple (0-255). Defaults to white.
+        font_size: Font size in pixels. Defaults to 20.0.
 
     Returns:
         A GTK CSS provider configured for text entry styling.
@@ -29,6 +31,7 @@ def _create_text_css_provider(
         background-color: transparent;
         color: rgba({r}, {g}, {b}, {a/255.0});
         caret-color: rgba({r}, {g}, {b}, {a/255.0});
+        font-size: {font_size}px;
     }}
     
     textview.canvas-text-overlay text,
@@ -68,6 +71,7 @@ class CanvasWidget(Gtk.DrawingArea):
         self._text_entry = None
         self._overlay = None
         self._text_entry_pos = None
+        self._text_entry_initial_dims = None
         self._drag_mode = "none"  # 'none', 'select', 'move', 'move_crop_image'
         self._drag_start_offset = (0, 0)
         self._start_pan_offset = (0, 0)
@@ -111,6 +115,22 @@ class CanvasWidget(Gtk.DrawingArea):
         Do not try to replace the overlay's child from here — MainWindow controls that."""
         self._overlay = overlay
 
+    def _update_text_entry_size(self, font_size):
+        """Update the size request of the text entry based on font size."""
+        if not self._text_entry or not self._text_entry_initial_dims:
+            return
+
+        cw, ch = self._text_entry_initial_dims
+        
+        # Ensure height accommodates the font size
+        # Using 1.5 as a safe factor for line-height + border padding
+        required_h = font_size * 1.5
+        
+        req_w = max(150, int(cw))
+        req_h = max(30, int(ch), int(required_h))
+        
+        self._text_entry.set_size_request(req_w, req_h)
+
     def show_text_entry(self, x, y, w, h):
         """Create a text entry positioned over the canvas at the given image coords."""
         if not self._overlay:
@@ -122,6 +142,7 @@ class CanvasWidget(Gtk.DrawingArea):
         if canvas_rect is None:
             return
         cx, cy, cw, ch = canvas_rect
+        self._text_entry_initial_dims = (cw, ch)
 
         # Use a TextView for multiline support
         self._text_entry = Gtk.TextView()
@@ -129,10 +150,12 @@ class CanvasWidget(Gtk.DrawingArea):
 
         # Apply current color
         color = self.processor._brush_color
-        self._apply_text_entry_style(color)
+        scale = self._image_display_rect[4] if self._image_display_rect else 1.0
+        font_size = self.processor._text_size * scale
+        self._apply_text_entry_style(color, font_size)
 
         # Style the text view to look like a text box
-        self._text_entry.set_size_request(max(50, int(cw)), max(30, int(ch)))
+        self._update_text_entry_size(font_size)
 
         # Position using margins
         self._text_entry.set_margin_start(int(cx))
@@ -819,7 +842,7 @@ class CanvasWidget(Gtk.DrawingArea):
             cr.stroke()
         cr.restore()
 
-    def _apply_text_entry_style(self, color):
+    def _apply_text_entry_style(self, color, font_size=20.0):
         """Apply CSS style with the given color to the text entry."""
         if not self._text_entry:
             return
@@ -834,7 +857,7 @@ class CanvasWidget(Gtk.DrawingArea):
         # Wait, the previous code used add_provider_for_display. That affects ALL widgets.
         # We should use add_provider (for context) for this specific widget.
 
-        provider = _create_text_css_provider(color)
+        provider = _create_text_css_provider(color, font_size)
         context.add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self._text_entry.add_css_class("canvas-text-overlay")
@@ -842,7 +865,10 @@ class CanvasWidget(Gtk.DrawingArea):
     def update_text_color(self, color):
         """Update the color of the active text entry."""
         if self._text_entry:
-            self._apply_text_entry_style(color)
+            scale = self._image_display_rect[4] if self._image_display_rect else 1.0
+            font_size = self.processor._text_size * scale
+            self._apply_text_entry_style(color, font_size)
+            self._update_text_entry_size(font_size)
 
     def _commit_text_entry(self):
         if not self._text_entry or not self.processor:
@@ -896,6 +922,7 @@ class CanvasWidget(Gtk.DrawingArea):
 
         self._text_entry = None
         self._text_entry_pos = None
+        self._text_entry_initial_dims = None
 
     def hide_text_entry(self) -> None:
         """Hides and removes the text entry overlay without committing text."""
@@ -910,3 +937,4 @@ class CanvasWidget(Gtk.DrawingArea):
                 pass
         self._text_entry = None
         self._text_entry_pos = None
+        self._text_entry_initial_dims = None

@@ -529,6 +529,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.processor.set_brush_size(size)
         elif self.manager.current_tool == "text":
             self.processor.set_text_size(size)
+            self.canvas.update_text_color(self.processor._brush_color)
 
     def on_brush_color_set(self, color_button):
         """Handle brush color change."""

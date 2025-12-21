@@ -378,9 +378,17 @@ class ImageProcessor:
 
             ctx.set_font_size(self._text_size)
 
-            # Position and draw text
-            ctx.move_to(x, y)
-            ctx.show_text(text)
+            # Get font extents to correctly position text
+            # Cairo draws from baseline, but input coordinate is top-left
+            extents = ctx.font_extents()
+            ascent = extents[0]
+            line_height = extents[2]
+
+            # Position and draw text (handle newlines)
+            lines = text.split('\n')
+            for i, line in enumerate(lines):
+                ctx.move_to(x, y + ascent + (i * line_height))
+                ctx.show_text(line)
 
     def save_image(self, filepath: str) -> None:
         """Saves the current Cairo surface to a PNG file."""
