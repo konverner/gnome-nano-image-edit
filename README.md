@@ -32,6 +32,8 @@ Image Processing: pycairo
 
 # Installation
 
+## From source
+
 1. `python -m pip install --upgrade build`
 2. `python -m build`
 3. `python -m pip install --force-reinstall dist/gnome_nano_image_edit-*.whl`
@@ -44,7 +46,6 @@ python -m src.main
 
 For development see: [development guide](./docs/development.md)
 
+## Flatpak
 
-# Usage
-
-TODO
+You can install GNIE via Flatpak from Flathub:
