@@ -34,6 +34,25 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self._setup_icon()
 
+        # CSS Provider for styling
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(
+            b"""
+            .toolbar-container {
+                margin-bottom: 8px;
+                margin-left: 8px;
+            }
+            .padded-button {
+                padding: 5px 10px;
+            }
+        """
+        )
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
         # Header Bar
         header_bar = Gtk.HeaderBar()
         self.set_titlebar(header_bar)
@@ -61,46 +80,52 @@ class MainWindow(Gtk.ApplicationWindow):
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.set_child(main_box)
 
-        # Toolbar Container
+        # Canvas & Overlay
+        self.canvas = CanvasWidget(self.processor, self.manager)
+        self.overlay = Gtk.Overlay()
+        self.overlay.set_child(self.canvas)
+        # Pass overlay to canvas for text tool
+        self.canvas.set_overlay(self.overlay)
+
+        # Scrolled Window (Canvas Container) - Add this FIRST
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_child(self.overlay)
+        scrolled_window.set_vexpand(True)
+        main_box.append(scrolled_window)
+
+        # Toolbar Container - Add this SECOND (Bottom)
         toolbar_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        toolbar_container.add_css_class("toolbar-container")
         main_box.append(toolbar_container)
 
-        # Tool Selector
+        # Tool Selector Box
         tool_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         tool_box.set_halign(Gtk.Align.START)
         toolbar_container.append(tool_box)
 
-        # CSS Provider for styling
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(
-            b"""
-            .padded-button {
-                padding: 10px 20px;
-            }
-        """
-        )
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(),
-            css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-        )
-
         # Tool Buttons
-        self.select_button = Gtk.ToggleButton(label="Select")
+        tool_size_group = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
 
+        self.select_button = Gtk.ToggleButton(label="Select")
+        self.select_button.add_css_class("padded-button")
+        tool_size_group.add_widget(self.select_button)
         tool_box.append(self.select_button)
 
         self.crop_button = Gtk.Button(label="Crop")
+        self.crop_button.add_css_class("padded-button")
+        tool_size_group.add_widget(self.crop_button)
         tool_box.append(self.crop_button)
 
         self.brush_button = Gtk.ToggleButton(label="Brush")
         self.brush_button.set_group(self.select_button)
-        
+        self.brush_button.add_css_class("padded-button")
+        tool_size_group.add_widget(self.brush_button)
         tool_box.append(self.brush_button)
 
         self.text_button = Gtk.ToggleButton(label="Text")
         self.text_button.set_group(self.select_button)
-
+        self.text_button.add_css_class("padded-button")
+        tool_size_group.add_widget(self.text_button)
         tool_box.append(self.text_button)
 
         # Connect signals
@@ -144,21 +169,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.font_dropdown = Gtk.DropDown.new_from_strings(fonts)
         self.font_dropdown.connect("notify::selected-item", self.on_font_changed)
         self.brush_controls_box.append(self.font_dropdown)
-
-        # Canvas
-        self.canvas = CanvasWidget(self.processor, self.manager)
-
-        # Overlay for text entry
-        self.overlay = Gtk.Overlay()
-        self.overlay.set_child(self.canvas)
-
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_child(self.overlay)
-        scrolled_window.set_vexpand(True)
-        main_box.append(scrolled_window)
-
-        # Pass overlay to canvas for text tool
-        self.canvas.set_overlay(self.overlay)
 
         # Set default tool
         self.select_button.set_active(True)

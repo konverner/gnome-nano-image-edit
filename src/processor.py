@@ -45,7 +45,7 @@ class ImageProcessor:
         self, width: int = 800, height: int = 600, color: tuple = (255, 255, 255, 255)
     ) -> None:
         """Creates a blank image with the specified dimensions and color.
-        
+
         Args:
             width: Image width in pixels. Defaults to 800.
             height: Image height in pixels. Defaults to 600.
@@ -254,7 +254,7 @@ class ImageProcessor:
 
             return copied_surface
         return None
-        
+
     def set_floating_selection(
         self, surface: cairo.Surface, x: int = 0, y: int = 0
     ) -> None:
@@ -385,7 +385,7 @@ class ImageProcessor:
             line_height = extents[2]
 
             # Position and draw text (handle newlines)
-            lines = text.split('\n')
+            lines = text.split("\n")
             for i, line in enumerate(lines):
                 ctx.move_to(x, y + ascent + (i * line_height))
                 ctx.show_text(line)
