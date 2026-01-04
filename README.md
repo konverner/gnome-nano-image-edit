@@ -48,4 +48,21 @@ For development see: [development guide](./docs/development.md)
 
 ## Flatpak
 
-You can install GNIE via Flatpak from Flathub:
+To build and install GNIE locally as a Flatpak:
+
+1. Install `flatpak-builder` and the required GNOME SDK:
+   ```bash
+   flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+   flatpak install --user flathub org.gnome.Platform//47 org.gnome.Sdk//47
+   ```
+
+2. Build and install the application:
+   ```bash
+   flatpak-builder --user --install --force-clean build-dir com.github.konverner.gnome-nano-image-edit.yml
+   ```
+
+3. Run the application:
+   The application icon will appear in your application menu. You can also launch it via terminal with:
+   ```bash
+   flatpak run com.github.konverner.gnome-nano-image-edit
+   ```
